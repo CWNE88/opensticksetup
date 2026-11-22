@@ -7,15 +7,20 @@ sudo apt install git python3-venv adb fastboot
 
 # Get edl
 git clone --recurse-submodules https://github.com/bkerler/edl.git
+
 cd edl
+
 python3 -m venv venv
+
 venv/bin/pip install .
 
 
 # Let edl use the stick without sudo, and keep this system's ModemManager from grabbing it:
 
 echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="05c6", \
+
 ATTRS{idProduct}=="9008", TAG+="uaccess", ENV{ID_MM_DEVICE_IGNORE}="1"' | \
+
 sudo tee /etc/udev/rules.d/99-qcom-edl.rules
 
 sudo udevadm control --reload
@@ -39,15 +44,22 @@ lsusb | grep 05c6:9008
 # Get backup of existing image. Run these from edl folder and give this particular usb stick a name (their radios all have different calibration) 
 
 E=venv/bin/edl
+
 B=~/stick-backups/stick2
+
 mkdir -p $B
+
 $E printgpt > $B/gpt.txt
+
 $E rf $B/full-emmc.bin
+
 $E rl $B/partitions --genxml
+
 $E reset
 
 # Make a checksum of it
 cd $B
+
 sha256sum full-emmc.bin partitions/* > SHA256SUMS
 
 # Check board type
@@ -63,9 +75,13 @@ adb shell getprop ro.product.model
 # https://github.com/kinsamanka/OpenStick-Builder/releases
 
 cd
+
 mkdir openstick
+
 cd openstick
+
 wget https://github.com/kinsamanka/OpenStick-Builder/releases/download/v0.2/openstick-debian.zip
+
 unzip openstick-debian.zip
 
 # Put it into fastboot mode
@@ -79,37 +95,55 @@ fastboot devices
 
 # First the bootloader files
 fastboot flash partition gpt_both0.bin
+
 fastboot flash aboot aboot.mbn
+
 fastboot flash hyp hyp.mbn
+
 fastboot flash rpm rpm.mbn
+
 fastboot flash sbl1 sbl1.mbn
+
 fastboot flash tz tz.mbn
+
 fastboot flash cdt sbc_1.0_8016.bin
 
 # Next the Linux files (Will take a LONG time!)
 fastboot flash boot boot.bin
+
 fastboot flash rootfs rootfs.bin
 
 # Next put the original IMEI and calibration data back on
 B=~/stick-backups/stick2/partitions
+
 fastboot flash sec $B/sec.bin
+
 fastboot flash fsc $B/fsc.bin
+
 fastboot flash fsg $B/fsg.bin
+
 fastboot flash modemst1 $B/modemst1.bin
+
 fastboot flash modemst2 $B/modemst2.bin
+
 fastboot flash modem $B/modem.bin
+
 fastboot flash persist $B/persist.bin
 
 # Reboot into OpenStick
 fastboot reboot
 
 ssh user@192.168.5.1
+
 password=1
 
 # Expand file system
 df -h
+
 lsblk
+
 sudo resize2fs /dev/mmcblk0p15
+
 df -h
 
 
@@ -136,18 +170,14 @@ sudo nmcli connection down lte; sudo nmcli connection up lte
 # Check it with this
 nmcli -g gsm.apn,ipv4.method,ipv6.method connection show lte
 
-
 # Force it to only try 4g, since 3g has been switched off
 sudo mmcli -m 0 --set-allowed-modes='4g'
 
 # Check it with this
 mmcli -m 0 | grep -A5 Modes
 
-
-
 # Make it keep trying if it struggles rather than give up
 sudo nmcli connection modify lte connection.autoconnect-retries 0
-
 
 # Check it with this
 nmcli -g connection.autoconnect-retries connection show lte
